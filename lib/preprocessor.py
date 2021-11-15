@@ -56,12 +56,30 @@ class Preprocessor:
         roll_df = self._make_rolls(df, 'id', 'y_diff_norm', [1], [4, 9, 13, 26, 52])
         df = pd.concat([df, roll_df], axis=1)
 
+    def _make_volatility(self, df, val_col, roll):
+        return np.log(df[val_col]).diff().rolling(roll).std()
+        
+    def make_volatility_feature(self, df):
+        rolls = [4, 8, 12]
+        for roll in rolls:
+            df[f'volatility_{roll}'] = self._make_volatility(df, 'y', roll)
+
+    def _make_mean_gap(self, df, roll):
+        return df['y'] / (df['y'].rolling(roll).mean())
+
+    def make_mean_gap_feature(self, df):
+        rolls = [4, 8, 12]
+        for roll in rolls:
+            df[f'mean_gap_{roll}'] = self._make_mean_gap(df, roll)
+
     def make_features(self, df):
         self.apply_log(df)
         self.make_objective(df)
         self.make_day_feature(df)
         self.make_lag_feature(df)
         self.make_roll_feature(df)
+        self.make_volatility_feature(df)
+        self.make_mean_gap_feature(df)
 
     def export(self, df):
         df.to_csv(self.export_path, index=False)
