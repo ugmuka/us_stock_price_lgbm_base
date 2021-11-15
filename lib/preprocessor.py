@@ -31,30 +31,29 @@ class Preprocessor:
         df['Day'] = df['Date'].dt.day
         df['WeekOfYear'] = df['Date'].dt.isocalendar().week.astype(int)
 
-    def _make_lags(self, df, group_col, val_col, lags):
-        lag_df = pd.DataFrame()
-        for lag in lags:
-            lag_df[f'lag_{lag}_{val_col}'] = df[[group_col, val_col]].groupby(
-                group_col)[val_col].transform(lambda x: x.shift(lag))
-        return lag_df
+    def _make_lags(self, df, group_col, val_col, lag):
+        return df[[group_col, val_col]].groupby(group_col)[val_col].transform(lambda x: x.shift(lag))
     
     def make_lag_feature(self, df):
-        lag_df = self._make_lags(df, 'id', 'y_diff_norm', [1,2,3,4])
-        df = pd.concat([df, lag_df], axis=1)
-
-    def _make_rolls(self, df, group_col, val_col, lags, rolls):
-        roll_df = pd.DataFrame()
+        lags = [1,2,3,4]
+        val_col = 'y_diff_norm'
         for lag in lags:
-            for roll in rolls:
-                roll_df[f'rmean_{lag}_{val_col}'] = df[[group_col, val_col]].groupby(
-                    group_col)[val_col].transform(lambda x: x.shift(lag).rolling(roll).mean())
-                roll_df[f'rstd_{lag}_{val_col}'] = df[[group_col, val_col]].groupby(
-                    group_col)[val_col].transform(lambda x: x.shift(lag).rolling(roll).std())
-        return roll_df
+            df[f'lag_{lag}_{val_col}'] = self._make_lags(df, 'id', val_col, lag)
+
+    def _make_roll_rmean(self, df, group_col, val_col, lag, roll):
+        return df[[group_col, val_col]].groupby(group_col)[val_col].transform(lambda x: x.shift(lag).rolling(roll).mean())
+    
+    def _make_roll_rstd(self, df, group_col, val_col, lag, roll):
+        return df[[group_col, val_col]].groupby(group_col)[val_col].transform(lambda x: x.shift(lag).rolling(roll).std())
 
     def make_roll_feature(self, df):
-        roll_df = self._make_rolls(df, 'id', 'y_diff_norm', [1], [4, 9, 13, 26, 52])
-        df = pd.concat([df, roll_df], axis=1)
+        lags = [1]
+        rolls = [4, 9, 13, 26, 52]
+        val_col = 'y_diff_norm'
+        for lag in lags:
+            for roll in rolls:
+                df[f'rmean_{lag}_{val_col}_{roll}'] = self._make_roll_rmean(df, 'id', val_col, lag, roll)
+                df[f'rstd_{lag}_{val_col}_{roll}'] = self._make_roll_rstd(df, 'id', val_col, lag, roll)
 
     def _make_volatility(self, df, val_col, roll):
         return np.log(df[val_col]).diff().rolling(roll).std()
