@@ -1,0 +1,11 @@
+.cache/
+.config/
+.local/
+.bash_history
+data/*.csv
+.ipython/
+.jupyter/
+notebook/.ipynb_checkpoints/
+output/*.csv
+__pycache__/
+lib/__pycache__/

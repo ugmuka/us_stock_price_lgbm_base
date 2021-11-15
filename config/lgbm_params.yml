@@ -1,0 +1,36 @@
+params:
+  objective': 'regression'
+  importance_type: 'gain'
+  metric: 'rmse'
+  seed: 42
+  n_jobs: -1
+  verbose: -1
+  n_estimators: 500
+  learning_rate: 0.1
+  boosting_type: 'gbdt'
+  subsample: 0.5
+  subsample_freq: 1
+  colsample_bytree: 0.5
+  num_leaves: 127
+  min_child_samples: 255
+  max_bin: 100
+config:
+  validate_method: 'TimeSeriesSpilit'
+  validate_splits: 5
+target_col: 'y_diff_norm'
+feature_cols: 
+  - 'Sector'
+  - 'Industry'
+  - 'List1'
+  - 'List2'
+  - 'IPOyear'
+  - 'Year'
+  - 'Month'
+  - 'Day'
+  - 'WeekOfYear'
+  - 'lag_1_y_diff_norm'
+  - 'lag_2_y_diff_norm'
+  - 'lag_3_y_diff_norm'
+  - 'lag_4_y_diff_norm'
+  - 'rmean_1_y_diff_norm'
+  - 'rstd_1_y_diff_norm'

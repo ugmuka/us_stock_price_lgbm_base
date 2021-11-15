@@ -1,0 +1,12 @@
+version: '3' 
+services: 
+  us_stock_price_lgbm:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - .:/home/jovyan
+    ports: 
+      - '8888:8888'
+    command: >
+      jupyter notebook --NotebookApp.token=''
