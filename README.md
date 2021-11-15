@@ -15,3 +15,10 @@ docker-compose build
 docker-compose up
 ```
 起動後、ブラウザで http://localhost:8888 にアクセスしてください。
+
+# スクリプト実行
+jupyternotebook->new->terminal
+
+```
+python main.py
+```
