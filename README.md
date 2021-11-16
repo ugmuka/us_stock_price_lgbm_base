@@ -17,7 +17,11 @@ docker-compose up
 起動後、ブラウザで http://localhost:8888 にアクセスしてください。
 
 # スクリプト実行
-jupyternotebook->new->terminal
+bash
+```
+docker-compose run --rm us_stock_price_lgbm bash
+```
+
 
 ```
 python main.py
