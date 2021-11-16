@@ -25,6 +25,6 @@ class Runner:
         # train model
         config_path = './config/lgbm_params.yml'
         submission_template_path = './data/submission_template.csv'
-        result_path = f'./result/submission_{datetime.date.today()}.csv'
+        result_path = './result/submission_' + datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=9))).strftime('%Y-%m-%d_%H:%M:%S') + '.csv'
         model = LGBMModel(config_path, df, submission_template_path, result_path)
         model.run()
