@@ -8,7 +8,7 @@ import lightgbm as lgb
 import yaml
 
 class LGBMModel:
-    def __init__(self, config_path, df, submission_template_path):
+    def __init__(self, config_path, df, submission_template_path, result_path):
         with open(config_path, 'r') as yml:
             config = yaml.safe_load(yml)
             self.params = config['params']
@@ -19,6 +19,7 @@ class LGBMModel:
             self.test_df = df[df['Date']=='2019-11-24'].reset_index(drop=True)
             self.train_df = df[df['Date']!='2019-11-24'].reset_index(drop=True)
             self.submission_template_path = submission_template_path
+            self.result_path = result_path
 
     def encode(self, df):
         encode_cols = ['Sector', 'Industry', 'List1', 'List2']
@@ -86,4 +87,4 @@ class LGBMModel:
         submission_df['y'] = np.expm1(
             np.mean(y_preds, axis=0) * self.test_df['y_diff_std'].values + self.test_df['y_prev'].values
         )
-        submission_df.to_csv(self.submission_template_path, index=False)
+        submission_df.to_csv(self.result_path, index=False)

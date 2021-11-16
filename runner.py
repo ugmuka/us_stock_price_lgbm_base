@@ -1,6 +1,7 @@
 from lib.dataset import Dataset
 from lib.preprocessor import Preprocessor
 from lib.lightgbm import LGBMModel
+import datetime
 
 class Runner:
     def __init__(self):
@@ -24,6 +25,7 @@ class Runner:
         # train model
         config_path = './config/lgbm_params.yml'
         submission_template_path = './data/submission_template.csv'
-        model = LGBMModel(config_path, df, submission_template_path)
+        result_path = f'./result/submission_{datetime.date.today()}.csv'
+        model = LGBMModel(config_path, df, submission_template_path, result_path)
         model.train()
         model.submit()
