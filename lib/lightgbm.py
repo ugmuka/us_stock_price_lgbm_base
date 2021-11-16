@@ -55,10 +55,10 @@ class LGBMModel:
             x_vl_fold = x_train.iloc[vl_idx]
             y_vl_fold = y_train.iloc[vl_idx]
 
-            if(self.best_params is None):
-                params = self.params
-            else:
+            if(hasattr(self, 'best_params')):
                 params = self.best_params
+            else:
+                params = self.params
             
             self.model = lgb.LGBMRegressor(**params)
             self.model.fit(
@@ -119,6 +119,6 @@ class LGBMModel:
         submission_df.to_csv(self.result_path, index=False)
 
     def run(self):
-        self.optuna_tuning()
+        # self.optuna_tuning()
         self.train()
         self.submit()
