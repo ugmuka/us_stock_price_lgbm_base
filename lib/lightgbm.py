@@ -6,6 +6,7 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import GroupKFold, TimeSeriesSplit
 import lightgbm as lgb
 import yaml
+import optuna.integration.lightgbm as lgb_optuna
 
 class LGBMModel:
     def __init__(self, config_path, df, submission_template_path, result_path):
@@ -18,6 +19,7 @@ class LGBMModel:
             df = self.encode(df)
             self.test_df = df[df['Date']=='2019-11-24'].reset_index(drop=True)
             self.train_df = df[df['Date']!='2019-11-24'].reset_index(drop=True)
+            self.sort()
             self.submission_template_path = submission_template_path
             self.result_path = result_path
 
@@ -30,11 +32,10 @@ class LGBMModel:
     def sort(self):
         self.train_df = self.train_df.sort_values('Date')
     
-    def validate(self):
+    def validate(self, n_splits):
         if(self.config['validate_method']=='TimeSeriesSpilit'):
-            self.sort()
             id_count = len(self.train_df['id'].unique())
-            tscv = TimeSeriesSplit(n_splits=self.config['validate_splits'], test_size=id_count)
+            tscv = TimeSeriesSplit(n_splits=n_splits, test_size=id_count)
             x_train_sort = self.train_df[self.feature_cols]
             y_train_sort = self.train_df[self.target_col]
             return tscv.split(x_train_sort, y_train_sort)
@@ -48,13 +49,18 @@ class LGBMModel:
         groups = self.train_df['id']
         y_oof = np.zeros(len(self.train_df))
         y_preds = []
-        for fold, (tr_idx, vl_idx) in enumerate(self.validate()):
+        for fold, (tr_idx, vl_idx) in enumerate(self.validate(n_splits=self.config['validate_splits'])):
             x_tr_fold = x_train.iloc[tr_idx]
             y_tr_fold = y_train.iloc[tr_idx]
             x_vl_fold = x_train.iloc[vl_idx]
             y_vl_fold = y_train.iloc[vl_idx]
 
-            self.model = lgb.LGBMRegressor(**self.params)
+            if(self.best_params is None):
+                params = self.params
+            else:
+                params = self.best_params
+            
+            self.model = lgb.LGBMRegressor(**params)
             self.model.fit(
                 x_tr_fold, y_tr_fold,
                 eval_set=(x_vl_fold, y_vl_fold),
@@ -75,6 +81,29 @@ class LGBMModel:
             np.sqrt(np.mean(np.square((y_oof[vl_idx] - y_vl_fold) * y_diff_std[vl_idx])))
         )
 
+    def optuna_tuning(self):
+        x_train = self.train_df[self.feature_cols]
+        y_train = self.train_df[self.target_col]
+        _, (tr_idx, vl_idx) = self.validate(n_splits=2)
+        x_tr_fold = x_train.iloc[tr_idx]
+        y_tr_fold = y_train.iloc[tr_idx]
+        x_vl_fold = x_train.iloc[vl_idx]
+        y_vl_fold = y_train.iloc[vl_idx]
+
+        lgb_train = lgb.Dataset(x_tr_fold, y_tr_fold)
+        lgb_eval = lgb.Dataset(x_vl_fold, y_vl_fold)
+
+        booster = lgb_optuna.LightGBMTuner(
+            params=self.params, 
+            train_set=lgb_train,
+            valid_sets=lgb_eval,
+            optuna_seed=42,
+        )
+
+        booster.run()
+
+        self.best_params = booster.best_params
+
     def predict(self):
         x_test = self.test_df[self.feature_cols]
         y_preds = self.model.predict(x_test)
@@ -88,3 +117,8 @@ class LGBMModel:
             np.mean(y_preds, axis=0) * self.test_df['y_diff_std'].values + self.test_df['y_prev'].values
         )
         submission_df.to_csv(self.result_path, index=False)
+
+    def run(self):
+        self.optuna_tuning()
+        self.train()
+        self.submit()
