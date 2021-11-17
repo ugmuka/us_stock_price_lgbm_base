@@ -26,3 +26,6 @@ docker-compose run --rm us_stock_price_lgbm bash
 ```
 python main.py
 ```
+
+# 結果確認
+`log/`配下にvalidationの実行結果が保存されます。
