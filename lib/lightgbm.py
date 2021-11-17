@@ -7,9 +7,11 @@ from sklearn.model_selection import GroupKFold, TimeSeriesSplit
 import lightgbm as lgb
 import yaml
 import optuna.integration.lightgbm as lgb_optuna
+import mlflow
+import datetime
 
 class LGBMModel:
-    def __init__(self, config_path, df, submission_template_path, result_path):
+    def __init__(self, config_path, df, submission_template_path, result_path, log_dir):
         with open(config_path, 'r') as yml:
             config = yaml.safe_load(yml)
             self.params = config['params']
@@ -22,6 +24,8 @@ class LGBMModel:
             self.sort()
             self.submission_template_path = submission_template_path
             self.result_path = result_path
+            mlflow.set_tracking_uri('file://' + log_dir)
+            mlflow.set_experiment("lgbm-experiment")
 
     def encode(self, df):
         encode_cols = ['Sector', 'Industry', 'List1', 'List2']
@@ -43,23 +47,28 @@ class LGBMModel:
             raise ValueError("validate method error")
 
     def train(self):
+        mlflow.start_run()
         x_train = self.train_df[self.feature_cols]
         y_train = self.train_df[self.target_col]
         y_diff_std =self.train_df['y_diff_std']
         groups = self.train_df['id']
         y_oof = np.zeros(len(self.train_df))
         y_preds = []
+        if(hasattr(self, 'best_params')):
+                params = self.best_params
+        else:
+            params = self.params
+
+        mlflow.log_param('params',params)
+        mlflow.log_param('feature',self.feature_cols)
+        mlflow.log_param('y',self.target_col)
+
         for fold, (tr_idx, vl_idx) in enumerate(self.validate(n_splits=self.config['validate_splits'])):
             x_tr_fold = x_train.iloc[tr_idx]
             y_tr_fold = y_train.iloc[tr_idx]
             x_vl_fold = x_train.iloc[vl_idx]
             y_vl_fold = y_train.iloc[vl_idx]
 
-            if(hasattr(self, 'best_params')):
-                params = self.best_params
-            else:
-                params = self.params
-            
             self.model = lgb.LGBMRegressor(**params)
             self.model.fit(
                 x_tr_fold, y_tr_fold,
@@ -70,16 +79,16 @@ class LGBMModel:
             )
 
             y_oof[vl_idx] = self.model.predict(x_vl_fold)
+            score = np.sqrt(np.mean(np.square((y_oof[vl_idx] - y_vl_fold) * y_diff_std[vl_idx])))
 
-            print(
-                f'fold {fold} score:',
-                np.sqrt(np.mean(np.square((y_oof[vl_idx] - y_vl_fold) * y_diff_std[vl_idx])))
-            )
+            print(f'fold {fold} score:{score}')
+            mlflow.log_metric(f'fold{fold}_score', score)
 
-        print(
-            'oof score:',
-            np.sqrt(np.mean(np.square((y_oof[vl_idx] - y_vl_fold) * y_diff_std[vl_idx])))
-        )
+        oof_score = np.sqrt(np.mean(np.square((y_oof[vl_idx] - y_vl_fold) * y_diff_std[vl_idx])))
+        print('oof score:', oof_score)
+        mlflow.log_metric('oof_score', oof_score)
+        mlflow.end_run()
+
 
     def optuna_tuning(self):
         x_train = self.train_df[self.feature_cols]
@@ -119,6 +128,6 @@ class LGBMModel:
         submission_df.to_csv(self.result_path, index=False)
 
     def run(self):
-        # self.optuna_tuning()
+        self.optuna_tuning()
         self.train()
         self.submit()

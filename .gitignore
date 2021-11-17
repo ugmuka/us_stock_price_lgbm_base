@@ -10,3 +10,5 @@ output/*.csv
 __pycache__/
 lib/__pycache__/
 result/*.csv
+log/*
+!log/.gitkeep
